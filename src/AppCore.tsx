@@ -8,7 +8,7 @@ import './share.css'
 type Swatch = { hex: string; name: string }
 type SavedPalette = { id: number; date: string; colors: Swatch[]; image: string; title: string }
 type ExportFormat = 'CSS' | 'Tailwind' | 'SCSS'
-const starterColors = ['#F3A27E', '#E65F39', '#435BC3', '#ACA1E8', '#728346', '#F5D2BA']
+const starterColors = ['#F3A27E', '#E65F39', '#435BC3', '#ACA1E8', '#728346', '#F5D2BA', '#27345E', '#B74763', '#D3A745', '#4B7F78', '#D78C53', '#F4E8D7']
 const presetImages = [
   { title: 'Citrus hour', src: '/images/library-citrus.jpg' },
   { title: 'Wild bloom', src: '/images/library-flowers.jpg' },
@@ -64,7 +64,7 @@ function readSharedPalette() {
   const value = new URLSearchParams(window.location.search).get('palette')
   if (!value) return null
   const colors = value.split(',').map((hex) => hex.replace(/^#/, ''))
-  if (colors.length < 5 || colors.length > 10 || colors.some((hex) => !/^[\da-f]{6}$/i.test(hex))) return null
+  if (colors.length < 5 || colors.length > 12 || colors.some((hex) => !/^[\da-f]{6}$/i.test(hex))) return null
   return toSwatches(colors.map((hex) => `#${hex.toUpperCase()}`))
 }
 function luminance(hex: string) {
@@ -95,7 +95,7 @@ export default function AppCore() {
   const fileInput = useRef<HTMLInputElement>(null)
   const sharedPalette = readSharedPalette()
   const [image, setImage] = useState(''), [imageLabel, setImageLabel] = useState(sharedPalette ? 'Shared palette' : '')
-  const [swatches, setSwatches] = useState(() => sharedPalette || toSwatches(starterColors)), [count, setCount] = useState(sharedPalette?.length || 6), [active, setActive] = useState(0)
+  const [swatches, setSwatches] = useState(() => sharedPalette || toSwatches(starterColors)), [count, setCount] = useState(sharedPalette?.length || 12), [active, setActive] = useState(0)
   const [format, setFormat] = useState<ExportFormat>('CSS'), [copied, setCopied] = useState(false)
   const [saved, setSaved] = useState<SavedPalette[]>(() => { try { return JSON.parse(localStorage.getItem('paletto-history') || '[]') as SavedPalette[] } catch { return [] } })
   const [foreground, setForeground] = useState(0), [background, setBackground] = useState(2), [toast, setToast] = useState(''), [dragging, setDragging] = useState(false)
@@ -145,11 +145,12 @@ export default function AppCore() {
     setSwatches((all) => all.map((s, i) => i === active ? { ...s, hex, name: colorName(hex, i) } : s))
   }
   function setSwatchCount(value: number) {
-    const n = Math.max(5, Math.min(10, value)); setCount(n)
+    const n = Math.max(5, Math.min(12, value)); setCount(n)
     if (n > swatches.length) setSwatches((s) => [...s, ...toSwatches(starterColors).slice(0, n - s.length)])
     else { setSwatches((s) => s.slice(0, n)); setActive((a) => Math.min(a, n - 1)); setForeground((a) => Math.min(a, n - 1)); setBackground((a) => Math.min(a, n - 1)) }
   }
   async function copyTokens() { try { await navigator.clipboard.writeText(text); setCopied(true); notify('Copied to clipboard.'); window.setTimeout(() => setCopied(false), 1800) } catch { notify('Clipboard access is unavailable in this browser.') } }
+  async function copySwatch(hex: string) { try { await navigator.clipboard.writeText(hex); notify(`${hex} copied.`) } catch { notify('Clipboard access is unavailable in this browser.') } }
   async function copyShareLink() {
     const url = new URL(window.location.href)
     url.searchParams.set('palette', swatches.map((swatch) => swatch.hex.slice(1)).join(','))
@@ -171,8 +172,8 @@ export default function AppCore() {
           <div className="preset-heading"><span>START WITH A LITTLE INSPIRATION</span><span>10 IMAGES</span></div>
           <div className="preset-grid" aria-label="Choose one of ten sample images">{presetImages.map((preset, i) => <button className={`preset-card ${image === preset.src ? 'active' : ''}`} key={preset.src} onClick={() => loadPreset(preset.src, preset.title)} aria-label={`Make a palette from ${preset.title}`}><img src={preset.src} alt="" loading="lazy" /><span className="preset-number">{String(i + 1).padStart(2, '0')}</span><span className="preset-title">{preset.title}</span></button>)}</div>
           <div className="source-footer"><span><ShieldCheck size={14} /> Your images stay on your device</span><button className="text-button" onClick={() => fileInput.current?.click()}><Upload size={14} /> Upload image <kbd>⌘ O</kbd></button></div>
-          <div className="palette-title-row"><div><div className="section-kicker">THE GOOD STUFF</div><h2>Your palette<span className="tiny-count">{String(swatches.length).padStart(2, '0')}</span></h2></div><div className="swatch-count"><label htmlFor="swatch-count">SWATCHES</label><div className="select-shell"><select id="swatch-count" value={count} onChange={(e) => setSwatchCount(+e.target.value)}>{Array.from({ length: 6 }, (_, i) => i + 5).map((n) => <option key={n} value={n}>{n} colours</option>)}</select><ChevronDown size={12} /></div></div></div>
-          <div className="palette-strip" role="list" aria-label="Extracted color palette">{swatches.map((s, i) => <button key={`${i}-${s.hex}`} role="listitem" className={`swatch ${active === i ? 'selected' : ''}`} onClick={() => setActive(i)} aria-label={`Edit ${s.hex}`} title="Click to edit this colour"><span className="swatch-color" style={{ backgroundColor: s.hex }}><span className="swatch-check">{active === i && <Check size={13} />}</span></span><span className="swatch-name">{s.name}</span><span className="swatch-hex">{s.hex}</span></button>)}</div>
+          <div className="palette-title-row"><div><div className="section-kicker">THE GOOD STUFF</div><h2>Your palette<span className="tiny-count">{String(swatches.length).padStart(2, '0')}</span></h2></div><div className="swatch-count"><label htmlFor="swatch-count">SWATCHES</label><div className="select-shell"><select id="swatch-count" value={count} onChange={(e) => setSwatchCount(+e.target.value)}>{Array.from({ length: 8 }, (_, i) => i + 5).map((n) => <option key={n} value={n}>{n} colours</option>)}</select><ChevronDown size={12} /></div></div></div>
+          <div className="palette-strip" role="list" aria-label="Extracted color palette">{swatches.map((s, i) => <button key={`${i}-${s.hex}`} role="listitem" className={`swatch ${active === i ? 'selected' : ''}`} onClick={() => { setActive(i); void copySwatch(s.hex) }} aria-label={`Copy ${s.hex} and edit`} title="Click to copy HEX and edit this colour"><span className="swatch-color" style={{ backgroundColor: s.hex }}><span className="swatch-check">{active === i && <Check size={13} />}</span></span><span className="swatch-name">{s.name}</span><span className="swatch-hex">{s.hex}</span></button>)}</div>
           <div className="palette-actions"><button className="btn btn-dark save-button" onClick={savePalette} disabled={!image && imageLabel !== 'Shared palette'}><Check size={15} /> Save palette</button><button className="subtle-action" onClick={regenerate} disabled={!image}><Sparkles size={14} /> Generate again</button><span className="saved-inline"><Clock3 size={13} /> Saved locally</span></div>
         </div>
         <div className="right-column">
