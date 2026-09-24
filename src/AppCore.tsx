@@ -1,14 +1,16 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { ChangeEvent, MouseEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownToLine, ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Copy, ImagePlus, LockKeyhole, Pipette, RotateCcw, Share2, ShieldCheck, SlidersHorizontal, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import './steps.css'
 import './preset-gallery.css'
 import './dropzone.css'
 import './share.css'
 import './image-actions.css'
+import './palette-inputs.css'
 
 type Swatch = { hex: string; name: string }
 type SavedPalette = { id: number; date: string; colors: Swatch[]; image: string; title: string }
 type ExportFormat = 'CSS' | 'Tailwind' | 'SCSS'
+type SwatchFormat = 'HEXA' | 'RGBA' | 'HSLA'
 const starterColors = ['#F3A27E', '#E65F39', '#435BC3', '#ACA1E8', '#728346', '#F5D2BA', '#27345E', '#B74763', '#D3A745', '#4B7F78', '#D78C53', '#F4E8D7']
 const presetImages = [
   { title: 'Citrus hour', src: '/images/library-citrus.jpg' },
@@ -30,6 +32,13 @@ function rgbToHsl(r: number, g: number, b: number) {
   const l = (max + min) / 2
   if (d) { s = d / (1 - Math.abs(2 * l - 1)); if (max === r) h = ((g - b) / d) % 6; else if (max === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; if (h < 0) h += 360 }
   return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) }
+}
+function formatColor(hex: string, format: SwatchFormat) {
+  const [r, g, b] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16))
+  if (format === 'HEXA') return `${hex.toUpperCase()}FF`
+  if (format === 'RGBA') return `rgba(${r}, ${g}, ${b}, 1)`
+  const { h, s, l } = rgbToHsl(r, g, b)
+  return `hsla(${h}, ${s}%, ${l}%, 1)`
 }
 function rgbToOklch(r: number, g: number, b: number) {
   const linear = (v: number) => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4 }
@@ -94,10 +103,12 @@ function extractPalette(image: HTMLImageElement, count: number): Swatch[] {
 
 export default function AppCore() {
   const fileInput = useRef<HTMLInputElement>(null)
+  const sourceImageRef = useRef<HTMLImageElement>(null)
   const sharedPalette = readSharedPalette()
   const [image, setImage] = useState(''), [imageLabel, setImageLabel] = useState(sharedPalette ? 'Shared palette' : '')
   const [swatches, setSwatches] = useState(() => sharedPalette || toSwatches(starterColors)), [count, setCount] = useState(sharedPalette?.length || 12), [active, setActive] = useState(0)
   const [format, setFormat] = useState<ExportFormat>('CSS'), [copied, setCopied] = useState(false)
+  const [swatchFormat, setSwatchFormat] = useState<SwatchFormat>('HEXA'), [pickMode, setPickMode] = useState(false)
   const [saved, setSaved] = useState<SavedPalette[]>(() => { try { return JSON.parse(localStorage.getItem('paletto-history') || '[]') as SavedPalette[] } catch { return [] } })
   const [foreground, setForeground] = useState(0), [background, setBackground] = useState(2), [toast, setToast] = useState(''), [dragging, setDragging] = useState(false)
   useEffect(() => { localStorage.setItem('paletto-history', JSON.stringify(saved.slice(0, 8))) }, [saved])
@@ -151,7 +162,24 @@ export default function AppCore() {
     else { setSwatches((s) => s.slice(0, n)); setActive((a) => Math.min(a, n - 1)); setForeground((a) => Math.min(a, n - 1)); setBackground((a) => Math.min(a, n - 1)) }
   }
   async function copyTokens() { try { await navigator.clipboard.writeText(text); setCopied(true); notify('Copied to clipboard.'); window.setTimeout(() => setCopied(false), 1800) } catch { notify('Clipboard access is unavailable in this browser.') } }
-  async function copySwatch(hex: string) { try { await navigator.clipboard.writeText(hex); notify(`${hex} copied.`) } catch { notify('Clipboard access is unavailable in this browser.') } }
+  async function copySwatch(hex: string) { const value = formatColor(hex, swatchFormat); try { await navigator.clipboard.writeText(value); notify(`${value} copied.`) } catch { notify('Clipboard access is unavailable in this browser.') } }
+  function pickColorFromImage(event: MouseEvent<HTMLImageElement>) {
+    if (!pickMode) return
+    const source = event.currentTarget, rect = source.getBoundingClientRect()
+    const scale = Math.max(rect.width / source.naturalWidth, rect.height / source.naturalHeight)
+    const cropX = (source.naturalWidth * scale - rect.width) / 2, cropY = (source.naturalHeight * scale - rect.height) / 2
+    const x = Math.max(0, Math.min(source.naturalWidth - 1, Math.floor((event.clientX - rect.left + cropX) / scale)))
+    const y = Math.max(0, Math.min(source.naturalHeight - 1, Math.floor((event.clientY - rect.top + cropY) / scale)))
+    try {
+      const canvas = document.createElement('canvas'), context = canvas.getContext('2d', { willReadFrequently: true })
+      canvas.width = 1; canvas.height = 1
+      if (!context) { notify('Could not sample this image.'); return }
+      context.drawImage(source, x, y, 1, 1, 0, 0, 1, 1)
+      const [r, g, b] = context.getImageData(0, 0, 1, 1).data
+      const hex = `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`.toUpperCase()
+      setPickMode(false); void copySwatch(hex)
+    } catch { notify('Could not sample this image.') }
+  }
   async function copyShareLink() {
     const url = new URL(window.location.href)
     url.searchParams.set('palette', swatches.map((swatch) => swatch.hex.slice(1)).join(','))
@@ -184,14 +212,15 @@ export default function AppCore() {
         <div className="left-column">
           <div className="dropzone-privacy"><ShieldCheck size={14} aria-hidden="true" /> <span>Files never leave in your browser</span></div>
           <div className={`image-card ${dragging ? 'is-dragging' : ''} ${image ? '' : 'empty-image-card'}`} onDragOver={(e) => { e.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); loadFile(e.dataTransfer.files[0]) }}>
-            {image ? <><img className="source-image" src={image} alt={`Source image: ${imageLabel}`} /><div className="image-overlay" /><div className="image-topline"><span className="image-label"><i className="status-dot" /> SOURCE IMAGE</span><button className="icon-button on-image" aria-label="Choose another image" onClick={() => fileInput.current?.click()}><RotateCcw size={15} /></button></div><div className="image-caption"><span>{imageLabel}</span><span>·</span><span>{swatches.length} colours found</span></div><button className="image-hover-hint" onClick={() => fileInput.current?.click()}><ImagePlus size={15} /> Drop a new image here</button></> : <button className="empty-dropzone" onClick={() => fileInput.current?.click()}><span className="dropzone-icon"><ImagePlus size={19} /></span><strong>Drop an image to find your palette</strong><span>or <u>browse your files</u> · JPG, PNG, WEBP</span></button>}
+            {image ? <><img ref={sourceImageRef} className={`source-image ${pickMode ? 'pick-color-active' : ''}`} onClick={pickColorFromImage} src={image} alt={`Source image: ${imageLabel}`} /><div className="image-overlay" /><div className="image-topline"><span className="image-label"><i className="status-dot" /> SOURCE IMAGE</span><div className="image-top-actions"><button className={`icon-button on-image ${pickMode ? 'pick-active' : ''}`} aria-label={pickMode ? 'Cancel colour picker' : 'Pick a colour from this image'} aria-pressed={pickMode} title="Pick a colour from the image" onClick={() => setPickMode((current) => !current)}><Pipette size={15} /></button><button className="icon-button on-image" aria-label="Choose another image" onClick={() => fileInput.current?.click()}><RotateCcw size={15} /></button></div></div><div className="image-caption"><span>{imageLabel}</span><span>·</span><span>{swatches.length} colours found</span></div>{pickMode ? <div className="image-hover-hint pick-mode-hint"><Pipette size={15} /> Click the image to copy a colour</div> : <button className="image-hover-hint" onClick={() => fileInput.current?.click()}><ImagePlus size={15} /> Drop a new image here</button>}</> : <button className="empty-dropzone" onClick={() => fileInput.current?.click()}><span className="dropzone-icon"><ImagePlus size={19} /></span><strong>Drop an image to find your palette</strong><span>or <u>browse your files</u> · JPG, PNG, WEBP</span></button>}
           </div>
           {image && <div className="image-actions" aria-label="Image conversion tools"><button className="btn image-tool-primary" onClick={downloadSvg} title="Download this image as SVG"><ArrowDownToLine size={14} /> Convert SVG</button><button className="btn image-tool-secondary" onClick={openPixelShift}>Convert WebP <ArrowRight size={13} /></button><button className="btn image-tool-secondary" onClick={openPixelShift}>Upload ImBB <ArrowRight size={13} /></button></div>}
           <div className="preset-heading"><span>START WITH A LITTLE INSPIRATION</span><span>10 IMAGES</span></div>
           <div className="preset-grid" aria-label="Choose one of ten sample images">{presetImages.map((preset, i) => <button className={`preset-card ${image === preset.src ? 'active' : ''}`} key={preset.src} onClick={() => loadPreset(preset.src, preset.title)} aria-label={`Make a palette from ${preset.title}`}><img src={preset.src} alt="" loading="lazy" /><span className="preset-number">{String(i + 1).padStart(2, '0')}</span><span className="preset-title">{preset.title}</span></button>)}</div>
           <div className="source-footer"><button className="text-button" onClick={() => fileInput.current?.click()}><Upload size={14} /> Upload image <kbd>⌘ O</kbd></button></div>
           <div className="palette-title-row"><div><div className="section-kicker">THE GOOD STUFF</div><h2>Your palette<span className="tiny-count">{String(swatches.length).padStart(2, '0')}</span></h2></div><div className="swatch-count"><label htmlFor="swatch-count">SWATCHES</label><div className="select-shell"><select id="swatch-count" value={count} onChange={(e) => setSwatchCount(+e.target.value)}>{Array.from({ length: 8 }, (_, i) => i + 5).map((n) => <option key={n} value={n}>{n} colours</option>)}</select><ChevronDown size={12} /></div></div></div>
-          <div className="palette-strip" role="list" aria-label="Extracted color palette">{swatches.map((s, i) => <button key={`${i}-${s.hex}`} role="listitem" className={`swatch ${active === i ? 'selected' : ''}`} onClick={() => { setActive(i); void copySwatch(s.hex) }} aria-label={`Copy ${s.hex} and edit`} title="Click to copy HEX and edit this colour"><span className="swatch-color" style={{ backgroundColor: s.hex }}><span className="swatch-check">{active === i && <Check size={13} />}</span></span><span className="swatch-name">{s.name}</span><span className="swatch-hex">{s.hex}</span></button>)}</div>
+          <div className="palette-strip" role="list" aria-label="Extracted color palette">{swatches.map((s, i) => <button key={`${i}-${s.hex}`} role="listitem" className={`swatch ${active === i ? 'selected' : ''}`} onClick={() => { setActive(i); void copySwatch(s.hex) }} aria-label={`Copy ${formatColor(s.hex, swatchFormat)} and edit`} title={`Click to copy ${swatchFormat} and edit this colour`}><span className="swatch-color" style={{ backgroundColor: s.hex }}><span className="swatch-check">{active === i && <Check size={13} />}</span></span><span className="swatch-name">{s.name}</span><span className="swatch-hex">{formatColor(s.hex, swatchFormat)}</span></button>)}</div>
+          <div className="color-format-bar"><span className="color-format-label">COPY FORMAT</span><div className="color-format-switch" role="group" aria-label="Color code format">{(['HEXA', 'RGBA', 'HSLA'] as SwatchFormat[]).map((mode) => <button key={mode} className={swatchFormat === mode ? 'active' : ''} aria-pressed={swatchFormat === mode} onClick={() => setSwatchFormat(mode)}>{mode}</button>)}</div></div>
           <div className="palette-actions"><button className="btn btn-dark save-button" onClick={savePalette} disabled={!image && imageLabel !== 'Shared palette'}><Check size={15} /> Save palette</button><button className="subtle-action" onClick={regenerate} disabled={!image}><Sparkles size={14} /> Generate again</button><span className="saved-inline"><Clock3 size={13} /> Saved locally</span></div>
         </div>
         <div className="right-column">
