@@ -6,6 +6,7 @@ import './dropzone.css'
 import './share.css'
 import './image-actions.css'
 import './palette-inputs.css'
+import './templates.css'
 
 type Swatch = { hex: string; name: string }
 type SavedPalette = { id: number; date: string; colors: Swatch[]; image: string; title: string }
@@ -23,6 +24,26 @@ const presetImages = [
   { title: 'Petal & porcelain', src: '/images/library-stilllife.jpg' },
   { title: 'Coffee break', src: '/images/library-coffee.jpg' },
   { title: 'Sunday still life', src: '/images/palette-still-life.png' },
+]
+const colorTemplates = [
+  { name: 'Tuscan Sun', mood: 'Warm · earthy', colors: ['#9C4F32', '#D98957', '#F1C27D', '#F4E8D1', '#5C6B48'] },
+  { name: 'Soft Focus', mood: 'Gentle · romantic', colors: ['#F4E8E1', '#D8A89B', '#A85D54', '#EFE1B6', '#606C59'] },
+  { name: 'Midnight Tide', mood: 'Deep · coastal', colors: ['#0E2C3F', '#155A67', '#58A6A6', '#D1B77E', '#F2E7D2'] },
+  { name: 'Citrus Club', mood: 'Bright · playful', colors: ['#EF6A38', '#F5B82E', '#F4E7B2', '#7D9A54', '#344C3D'] },
+  { name: 'Quiet Luxury', mood: 'Refined · neutral', colors: ['#292622', '#71685E', '#B3A38E', '#DDD2C1', '#F5F0E8'] },
+  { name: 'Garden Party', mood: 'Fresh · botanical', colors: ['#315B43', '#73966A', '#BBCB9B', '#F1D1C2', '#E9AE62'] },
+  { name: 'Blue Hour', mood: 'Calm · cool', colors: ['#202A44', '#445A83', '#8197B1', '#C2D1D8', '#F3EDE1'] },
+  { name: 'Peach Please', mood: 'Sweet · sunny', colors: ['#A8443B', '#E17B62', '#F2A889', '#F9D7B8', '#F6E9D5'] },
+  { name: 'Electric Bloom', mood: 'Bold · vivid', colors: ['#3C236B', '#7446B5', '#D2467A', '#F1A643', '#E9E75A'] },
+  { name: 'Moss & Stone', mood: 'Natural · grounded', colors: ['#353F35', '#65705A', '#989982', '#C5BDA9', '#E8E2D5'] },
+  { name: 'Retro Riviera', mood: 'Vintage · playful', colors: ['#E7654F', '#F4B548', '#F3DBA5', '#3D8190', '#254F61'] },
+  { name: 'Lavender Haze', mood: 'Dreamy · soft', colors: ['#4C426D', '#8277A8', '#B5A9CC', '#E3D6E5', '#EFC5B5'] },
+  { name: 'Cocoa Studio', mood: 'Rich · tactile', colors: ['#382A24', '#6C4434', '#A87555', '#D7B18B', '#F1E2CF'] },
+  { name: 'Poolside', mood: 'Cool · cheerful', colors: ['#087E8B', '#20A6A6', '#8DD3C7', '#F4D35E', '#F6F3E7'] },
+  { name: 'Cherry Cola', mood: 'Moody · modern', colors: ['#271B29', '#572A3A', '#9B4053', '#D68969', '#EBD6BD'] },
+  { name: 'Alpine Air', mood: 'Crisp · serene', colors: ['#314A5B', '#7795A3', '#B9CBCD', '#E6E8DB', '#C79669'] },
+  { name: 'Sunday Market', mood: 'Artisan · warm', colors: ['#BC583B', '#E5A447', '#E9CB91', '#64734C', '#40545A'] },
+  { name: 'Monochrome Muse', mood: 'Minimal · timeless', colors: ['#20201F', '#4D4C49', '#85837E', '#C2BFB7', '#F1EFE9'] },
 ]
 
 function rgbToHsl(r: number, g: number, b: number) {
@@ -204,9 +225,10 @@ export default function AppCore() {
   }
   function openPixelShift() { window.location.assign('https://pixelshift.acetix.xyz/') }
   if (window.location.pathname === '/privacy') return <PrivacyPage />
+  if (window.location.pathname === '/templates') return <TemplatesPage />
 
   return <div className="app-shell">
-    <nav className="navbar navbar-expand-lg topbar"><div className="container-fluid app-container px-0"><a className="navbar-brand brand-mark" href="#top" aria-label="Palette by Acetix home"><span className="brand-icon"><i /><i /><i /><i /></span><span style={{ display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1 }}><span>Palette<span className="brand-period">.</span></span><small style={{ fontSize: 9, fontWeight: 500, letterSpacing: '.2px', lineHeight: 1.1, color: '#89867f' }}>by Acetix</small></span></a><div className="top-nav"><a href="#how-it-works">How it works</a><a href="#about">About</a><a href="/privacy">Privacy</a><span className="nav-divider" /><span className="local-badge"><LockKeyhole size={13} /> Private by design</span></div><button className="btn btn-dark header-button" onClick={() => fileInput.current?.click()}><ImagePlus size={16} /> New palette</button></div></nav>
+    <nav className="navbar navbar-expand-lg topbar"><div className="container-fluid app-container px-0"><a className="navbar-brand brand-mark" href="#top" aria-label="Palette by Acetix home"><span className="brand-icon"><i /><i /><i /><i /></span><span style={{ display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1 }}><span>Palette<span className="brand-period">.</span></span><small style={{ fontSize: 9, fontWeight: 500, letterSpacing: '.2px', lineHeight: 1.1, color: '#89867f' }}>by Acetix</small></span></a><div className="top-nav"><a href="#how-it-works">How it works</a><a href="#about">About</a><a href="/privacy">Privacy</a><span className="nav-divider" /><span className="local-badge"><LockKeyhole size={13} /> Private by design</span></div><a className="btn btn-dark header-button" href="/templates">c.Templates <ArrowRight size={14} /></a></div></nav>
     <main id="top" className="container-fluid app-container main-content">
       <section className="workspace-grid" aria-label="Palette workspace">
         <div className="left-column">
@@ -241,6 +263,20 @@ export default function AppCore() {
     </main>
     <footer className="site-footer"><div className="container-fluid app-container footer-inner"><a className="footer-brand" href="#top"><span className="brand-icon"><i /><i /><i /><i /></span>palette<span className="brand-period">.</span></a><span className="footer-made">A tiny tool for seeing colour differently <b>✳</b></span><div className="footer-links"><a href="https://acetix.xyz/privacy" target="_blank" rel="noreferrer">Privacy</a><a href="https://acetix.xyz/about" target="_blank" rel="noreferrer">About</a><a href="mailto:acetix.team@gmail.com">Say hello <ArrowRight size={12} /></a></div><span className="copyright">© 2026 acetix</span></div></footer>
     <input ref={fileInput} className="visually-hidden" type="file" accept="image/*" onChange={(e: ChangeEvent<HTMLInputElement>) => { loadFile(e.target.files?.[0]); e.target.value = '' }} />{toast && <div className="toast-note" role="status"><Check size={15} />{toast}<button aria-label="Dismiss" onClick={() => setToast('')}><X size={13} /></button></div>}
+  </div>
+}
+
+function TemplatesPage() {
+  function applyTemplate(colors: string[]) {
+    const url = new URL('/', window.location.origin)
+    url.searchParams.set('palette', colors.map((color) => color.slice(1)).join(','))
+    window.location.assign(url.toString())
+  }
+  return <div className="templates-page">
+    <nav className="navbar topbar"><div className="container-fluid app-container px-0"><a className="navbar-brand brand-mark" href="/" aria-label="Palette by Acetix home"><span className="brand-icon"><i /><i /><i /><i /></span><span className="template-brand-stack"><span>Palette<span className="brand-period">.</span></span><small>by Acetix</small></span></a><a className="btn btn-dark header-button" href="/">Open palette <ArrowRight size={14} /></a></div></nav>
+    <main className="container-fluid app-container templates-content"><div className="eyebrow"><Sparkles size={13} /> CURATED COLOUR STARTERS</div><div className="templates-heading"><div><h1>Good colour,<br /><em>already in motion.</em></h1><p>Choose a ready-made palette, then make it your own in Palette.</p></div><span className="templates-total">{String(colorTemplates.length).padStart(2, '0')} PALETTES</span></div>
+      <div className="templates-grid">{colorTemplates.map((template, index) => <article className="template-card" key={template.name}><div className="template-swatches" aria-label={`${template.name} colours`}>{template.colors.map((color) => <span key={color} style={{ backgroundColor: color }} />)}</div><div className="template-card-info"><div><span className="template-index">{String(index + 1).padStart(2, '0')} · {template.mood}</span><h2>{template.name}</h2></div><button onClick={() => applyTemplate(template.colors)} aria-label={`Use ${template.name} palette`}><ArrowRight size={16} /></button></div><div className="template-hexes">{template.colors.map((color) => <span key={color}>{color}</span>)}</div></article>)}</div>
+    </main><footer className="site-footer"><div className="container-fluid app-container footer-inner"><a className="footer-brand" href="/"><span className="brand-icon"><i /><i /><i /><i /></span>palette<span className="brand-period">.</span></a><span className="footer-made">A starting point for something wonderful <b>✳</b></span><div className="footer-links"><a href="/privacy">Privacy</a><a href="mailto:acetix.team@gmail.com">Say hello <ArrowRight size={12} /></a></div></div></footer>
   </div>
 }
 
